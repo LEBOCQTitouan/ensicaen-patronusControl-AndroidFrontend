@@ -93,11 +93,11 @@ public class UwbJetPack {
                                     .getPosition()
                                     .getElevation()).getValue();
 
-                            ((MainActivity) mContext).writeTextView(
-                                    "Distance : " + distance + " cm\n" +
-                                    "Angle Az : " + angleAzimuth + "°\n" +
-                                    "Angle El : " + angleElevation + "°\n"
-                            );
+                            //TODO display
+//                                    "Distance : " + distance + " cm\n" +
+//                                    "Angle Az : " + angleAzimuth + "°\n" +
+//                                    "Angle El : " + angleElevation + "°\n"
+
                             int angle = 20;
                             if (Math.abs(angleAzimuth) < angle) {
                                 ((MainActivity) mContext).lockVibration();

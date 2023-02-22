@@ -11,6 +11,8 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.view.View;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -30,26 +32,20 @@ public class MainActivity extends AppCompatActivity {
     private Vibrator mVibrator;
     private boolean isVibrating = false;
 
-    //TODO test textview
-    TextView textView;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-//        WebView myWebView = (WebView) findViewById(R.id.webview);
-//        myWebView.loadUrl("http://www.example.com");
+        setContentView(R.layout.webview);
 
-        // TODO : it is a test
-        setContentView(R.layout.testview);
-        Button button = findViewById(R.id.button2);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startUWBBLE();
-            }
-        });
-        textView = findViewById(R.id.textView);
+        WebView myWebView = (WebView) findViewById(R.id.webview);
+        myWebView.loadUrl("http://192.168.1.11");
+
+        WebSettings webSettings = myWebView.getSettings();
+
+        myWebView.loadUrl("javascript:deviceUpdate(\"1\")");
+
+        startUWBBLE();
 
         mVibrator = ((VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE))
                 .getDefaultVibrator();
@@ -67,11 +63,6 @@ public class MainActivity extends AppCompatActivity {
         if (!checkPermission()) {
             requestPermissions();
         }
-    }
-
-    //TODO test, delete when webView is done
-    public void writeTextView(String message) {
-        textView.setText(message);
     }
 
     /**
