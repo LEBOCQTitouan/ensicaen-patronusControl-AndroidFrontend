@@ -1,6 +1,8 @@
 package fr.patronuscontrol.androiduwb;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -10,6 +12,7 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.util.Log;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -24,28 +27,40 @@ import androidx.core.content.ContextCompat;
 
 import fr.patronuscontrol.androiduwb.bluetooth.BleRanging;
 import fr.patronuscontrol.androiduwb.managers.UwbManagerImpl;
+import fr.patronuscontrol.androiduwb.uwb.UwbJetPack;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> mActivityResultLauncher;
     private UwbManagerImpl uwbManagerImpl;
     private BleRanging bleRanging;
+
+    private WebView myWebView;
+
     private Vibrator mVibrator;
     private boolean isVibrating = false;
 
+    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.webview);
 
-        WebView myWebView = (WebView) findViewById(R.id.webview);
-        myWebView.loadUrl("http://192.168.1.11");
-
-        WebSettings webSettings = myWebView.getSettings();
-
-        myWebView.loadUrl("javascript:deviceUpdate(\"1\")");
+        myWebView = findViewById(R.id.webview);
+        myWebView.loadUrl("http://patronuscontrol.local");
+        myWebView.getSettings().setJavaScriptEnabled(true);
 
         startUWBBLE();
+
+
+        myWebView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                uwbManagerImpl.stopRanging();
+            }
+        });
+
+
 
         mVibrator = ((VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE))
                 .getDefaultVibrator();
@@ -68,15 +83,16 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Make the phone vibrate with a lock pattern
      */
-    public void lockVibration() {
+    public void lockVibration(String macBLEAddress) {
         if (!isVibrating) {
+            isVibrating = true;
             VibrationEffect v = VibrationEffect.startComposition()
                     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_SLOW_RISE, 0.5f)
                     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_FALL, 0.5f)
                     .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, 1.0f)
                     .compose();
             mVibrator.vibrate(v);
-            isVibrating = true;
+            myWebView.loadUrl("javascript:deviceUpdate(\"" + macBLEAddress + "\");");
         }
     }
 
@@ -91,10 +107,30 @@ public class MainActivity extends AppCompatActivity {
                     .compose();
             mVibrator.vibrate(v);
             isVibrating = false;
+            myWebView.loadUrl("javascript:deviceUpdate()");
+        } else {
+//            stopUWB();
+//            restartUWBWithNextDevice();
         }
     }
 
-    public void startUWBBLE() {
+    private void stopUWB() {
+        bleRanging.stopUWB();
+        BluetoothDevice currentDevice = bleRanging.getDeviceList().get(0);
+
+        bleRanging.getDisconnectedDeviceList().add(currentDevice);
+        bleRanging.getDeviceList().remove(currentDevice);
+
+        bleRanging.getUwbJetPack().stopUWBPhone();
+    }
+
+    private void restartUWBWithNextDevice() {
+        while (bleRanging.getDeviceList().size() == 0);
+        BluetoothDevice nextDevice = bleRanging.getDeviceList().get(0);
+        bleRanging.startUWB(nextDevice);
+    }
+
+    private void startUWBBLE() {
         uwbManagerImpl = UwbManagerImpl.getInstance(this);
         bleRanging = new BleRanging(this);
 
@@ -149,6 +185,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
+
+        uwbManagerImpl.stopRanging();
 
         System.exit(0);
     }

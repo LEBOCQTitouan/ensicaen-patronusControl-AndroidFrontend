@@ -1,5 +1,6 @@
 package fr.patronuscontrol.androiduwb.uwb;
 
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.util.Log;
 
@@ -9,6 +10,9 @@ import androidx.core.uwb.UwbControleeSessionScope;
 import androidx.core.uwb.UwbControllerSessionScope;
 import androidx.core.uwb.rxjava3.UwbManagerRx;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 
@@ -29,6 +33,7 @@ public class UwbJetPack {
 
     private UwbDeviceConfigData mUwbDeviceConfigData;
     private UwbPhoneConfigData mUwbPhoneConfigData;
+    private Map<String, BluetoothDevice> mBLEDeviceMap;
 
     private Single<UwbControllerSessionScope> controllerSessionScopeSingle = null;
     private UwbControllerSessionScope controllerSessionScope = null;
@@ -61,6 +66,18 @@ public class UwbJetPack {
         mUwbPhoneConfigData.setProfileId(uwbProfileID);
         mUwbPhoneConfigData.setDeviceRangingRole(uwbDeviceRangingRole);
         mUwbPhoneConfigData.setPhoneMacAddress(Utils.revert(localAddress.getAddress()));
+
+        mBLEDeviceMap = null;
+    }
+
+    public void setBLEDeviceList(List<BluetoothDevice> bleDeviceList, byte[] deviceMacAddress){
+        deviceMacAddress = Utils.revert(deviceMacAddress);
+        if (mBLEDeviceMap == null && bleDeviceList.size() == 1) {
+            mBLEDeviceMap = new HashMap<>();
+            mBLEDeviceMap.put(Utils.byteArrayToHexString(deviceMacAddress), bleDeviceList.get(0));
+        } else if (mBLEDeviceMap != null) {
+            mBLEDeviceMap.put(Utils.byteArrayToHexString(deviceMacAddress), bleDeviceList.get(bleDeviceList.size()-1));
+        }
     }
 
     /**
@@ -99,8 +116,13 @@ public class UwbJetPack {
 //                                    "Angle El : " + angleElevation + "°\n"
 
                             int angle = 20;
+
+                            String macAddress = Utils.byteArrayToHexString(
+                                    rangingResult.getDevice().getAddress().getAddress());
+
                             if (Math.abs(angleAzimuth) < angle) {
-                                ((MainActivity) mContext).lockVibration();
+                                ((MainActivity) mContext).lockVibration(
+                                        Objects.requireNonNull(mBLEDeviceMap.get(macAddress)).getAddress());
                             } else {
                                 ((MainActivity) mContext).unlockVibration();
                             }
@@ -121,6 +143,10 @@ public class UwbJetPack {
                 });
     }
 
+    public void stopUWBPhone() {
+        mUwbManagerImpl.stopRanging();
+    }
+
     /**
      * Get local address
      * @param uwbDeviceRangingRole uwb ranging role
@@ -129,10 +155,12 @@ public class UwbJetPack {
     private UwbAddress getLocalAddress(byte uwbDeviceRangingRole) {
         UwbAddress localAddress = null;
         if (uwbDeviceRangingRole == Protocol.RANGING_ROLE_CONTROLLER) {
+            Log.d(TAG, "Android phone will act as a Controlee");
             controleeSessionScopeSingle = UwbManagerRx.controleeSessionScopeSingle(mUwbManagerImpl.getUwbManager());
             controleeSessionScope = controleeSessionScopeSingle.blockingGet();
             localAddress = controleeSessionScope.getLocalAddress();
         } else if (uwbDeviceRangingRole == Protocol.RANGING_ROLE_CONTROLEE) {
+            Log.d(TAG, "Android phone will act as a Controller");
             controllerSessionScopeSingle = UwbManagerRx.controllerSessionScopeSingle(mUwbManagerImpl.getUwbManager());
             controllerSessionScope = controllerSessionScopeSingle.blockingGet();
             localAddress = controllerSessionScope.getLocalAddress();

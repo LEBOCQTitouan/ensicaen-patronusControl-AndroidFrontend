@@ -2,6 +2,7 @@ package fr.patronuscontrol.androiduwb.managers;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.util.Log;
 
 import androidx.core.uwb.RangingParameters;
 import androidx.core.uwb.RangingResult;
@@ -31,6 +32,8 @@ public class UwbManagerImpl {
     private Disposable disposable = null;
 
     private static UwbManagerImpl mInstance = null;
+
+    private UwbRangingListener uwbRangingListener;
 
     /**
      * Private constructor
@@ -94,18 +97,18 @@ public class UwbManagerImpl {
             );
 
             UwbAddress shieldUwbAddress = new UwbAddress(Utils.revert(uwbDeviceConfigData.getDeviceMacAddress()));
-            UwbDevice shieldUwnDevice = new UwbDevice(shieldUwbAddress);
+            UwbDevice shieldUwbDevice = new UwbDevice(shieldUwbAddress);
 
             List<UwbDevice> listUwbDevices = new ArrayList<>();
-            listUwbDevices.add(shieldUwnDevice);
+            listUwbDevices.add(shieldUwbDevice);
 
             RangingParameters rangingParameters = new RangingParameters(
-                    uwbProfileId,
+                    RangingParameters.UWB_CONFIG_ID_1,
                     sessionId,
                     null,
                     uwbComplexChannel,
                     listUwbDevices,
-                    RangingParameters.RANGING_UPDATE_RATE_AUTOMATIC
+                    RangingParameters.RANGING_UPDATE_RATE_FREQUENT
             );
 
             Flowable<RangingResult> rangingResultFlowable = null;
@@ -118,8 +121,8 @@ public class UwbManagerImpl {
             }
 
             assert rangingResultFlowable != null;
-            disposable = rangingResultFlowable
-                    .subscribeWith(new DisposableSubscriber<RangingResult>() {
+            DisposableSubscriber<RangingResult> disposableSubscriber =
+                    new DisposableSubscriber<>() {
                         @Override
                         protected void onStart() {
                             request(1);
@@ -140,7 +143,8 @@ public class UwbManagerImpl {
                         public void onComplete() {
                             uwbRangingListener.onRangingComplete();
                         }
-                    });
+                    };
+            disposable = rangingResultFlowable.subscribeWith(disposableSubscriber);
             uwbRangingListener.onRangingStarted();
         });
 
