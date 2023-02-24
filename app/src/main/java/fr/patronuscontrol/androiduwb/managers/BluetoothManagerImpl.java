@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -36,11 +37,9 @@ import fr.patronuscontrol.androiduwb.utils.Utils;
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
 @SuppressLint("MissingPermission")
 public class BluetoothManagerImpl {
-
     private static final String TAG = BluetoothManagerImpl.class.getSimpleName();
 
-    /// MK UWB Kit defined UUIDs (QPP Profile)
-    protected static UUID serviceUUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+    public static UUID serviceUUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
     protected static UUID rxCharacteristicUUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
     protected static UUID txCharacteristicUUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
     protected static UUID descriptorUUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
@@ -53,6 +52,8 @@ public class BluetoothManagerImpl {
     private final BluetoothDataReceivedListener bluetoothDataReceivedListener;
 
     private BluetoothGatt bluetoothGatt;
+    private BluetoothGattServer bluetoothGattServer;
+    private List<BluetoothGatt> bluetoothGattList;
     private BluetoothGattCharacteristic txCharacteristic;
     private BluetoothGattCharacteristic rxCharacteristic;
 
@@ -84,8 +85,8 @@ public class BluetoothManagerImpl {
         BluetoothManager bluetoothManager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         this.bluetoothAdapter = bluetoothManager.getAdapter();
         this.bluetoothLeScanner = bluetoothAdapter.getBluetoothLeScanner();
-        this.bluetoothConnectionListener = bleRanging;
-        this.bluetoothDataReceivedListener = bleRanging;
+        this.bluetoothConnectionListener = (BluetoothConnectionListener) bleRanging;
+        this.bluetoothDataReceivedListener = (BluetoothDataReceivedListener) bleRanging;
     }
 
     public static synchronized BluetoothManagerImpl getInstance(final Context context
@@ -165,7 +166,7 @@ public class BluetoothManagerImpl {
     private final ScanCallback scanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            Log.d(TAG, "New device discovered");
+            Log.d(TAG, "New device discovered : " + result.getDevice().getAddress());
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
                 onScan(result.getDevice());
             }
@@ -353,7 +354,7 @@ public class BluetoothManagerImpl {
             bluetoothGatt.close();
         }
 
-        bluetoothGatt = null;
+//        bluetoothGatt = null;
     }
 
     /**

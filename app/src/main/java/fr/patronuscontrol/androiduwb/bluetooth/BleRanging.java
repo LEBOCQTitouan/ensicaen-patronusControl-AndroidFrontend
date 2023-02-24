@@ -3,6 +3,7 @@ package fr.patronuscontrol.androiduwb.bluetooth;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -12,11 +13,13 @@ import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import fr.patronuscontrol.androiduwb.MainActivity;
 import fr.patronuscontrol.androiduwb.managers.BluetoothManagerImpl;
@@ -41,6 +44,16 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
 
     private final List<BluetoothDevice> deviceList;
 
+    private final List<BluetoothDevice> disconnectedDeviceList;
+
+    public List<BluetoothDevice> getDisconnectedDeviceList() {
+        return disconnectedDeviceList;
+    }
+
+    public UwbJetPack getUwbJetPack() {
+        return mUwbConfigJetPack;
+    }
+
     public BleRanging(MainActivity mainActivity) {
         mContext = mainActivity;
         mBluetoothManagerImpl = BluetoothManagerImpl.getInstance(mContext, this);
@@ -48,6 +61,7 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
         mMainActivity = mainActivity;
 
         deviceList = new ArrayList<>();
+        disconnectedDeviceList = new ArrayList<>();
     }
 
     /**
@@ -109,14 +123,43 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
                 // Stop scanning and further proceed to connect to the device
                 mBluetoothManagerImpl.stopLeDeviceScan();
 
-                pairDevice(device);
+                new Thread(() -> {
+                    connectToDevice(device, BluetoothManagerImpl.serviceUUID);
 
-                mBluetoothManagerImpl.connect(device.getAddress());
-                deviceList.add(device);
+                    pairDevice(device);
+
+                    mBluetoothManagerImpl.connect(device.getAddress());
+                    deviceList.add(device);
+                }).start();
             } else {
                 Log.e(TAG, "Missing required permission to read Bluetooth device name!", new Exception());
             }
         });
+    }
+
+    public BluetoothSocket connectToDevice(BluetoothDevice device, UUID uuid) {
+        BluetoothSocket socket;
+        try {
+            if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                return null;
+            }
+            socket = device.createRfcommSocketToServiceRecord(uuid);
+            socket.connect();
+
+            return socket;
+        } catch (IOException e) {
+            // Handle exception
+        }
+        return null;
+    }
+
+    public void stopUWB() {
+        mBluetoothManagerImpl.transmit(new byte[]{Protocol.MessageId.stop.getValue()});
+    }
+
+    public void startUWB(BluetoothDevice bleDevice) {
+        Log.d(TAG, "restarting UWB");
+        mBluetoothManagerImpl.transmit(new byte[]{Protocol.MessageId.initialize.getValue()});
     }
 
     /**
@@ -165,11 +208,14 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
             byte[] trimmedData = Utils.trimLeadingBytes(data, 1);
             configureAndStartUwbRangingSession(trimmedData);
         } else if (messageId == Protocol.MessageId.uwbDidStart.getValue()) {
-            // todo uwbRangingSessionStarted();
+            // TODO uncomment when the controller mode works.
             startBLEScanning();
             mUwbConfigJetPack.startUwbPhone();
         } else if (messageId == Protocol.MessageId.uwbDidStop.getValue()) {
             // todo uwbRangingSessionStopped();
+            BluetoothDevice device = disconnectedDeviceList.get(0);
+            disconnectedDeviceList.remove(device);
+            deviceList.add(device);
         } else {
             throw new IllegalArgumentException("Unexpected value");
         }
@@ -181,23 +227,40 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
                 uwbPhoneConfigData.toByteArray()));
     }
 
+    Thread t = null;
+
     public void configureAndStartUwbRangingSession(byte[] data) {
         Log.d(TAG, "UWB Configure UwbDeviceConfigData: " + Utils.byteArrayToHexString(data));
 
         final UwbDeviceConfigData uwbDeviceConfigData = UwbDeviceConfigData.fromByteArray(data);
 
-        new Thread(() -> {
-            try {
-                mUwbConfigJetPack = new UwbJetPack(mContext, uwbDeviceConfigData);
+        if (t != null) {
+            t = null;
+            mUwbConfigJetPack = null;
+        }
 
-                mBluetoothManagerImpl.transmit(Utils.concat(
-                        new byte[]{Protocol.MessageId.uwbPhoneConfigurationData.getValue()},
-                        mUwbConfigJetPack.getmUwbPhoneConfigData().toByteArray()));
-            } catch (Exception ignored) {
+        t = new Thread(() -> {
+            try {
+                // TODO change when controller mode works
+                if (mUwbConfigJetPack == null) {
+                    mUwbConfigJetPack = new UwbJetPack(mContext, uwbDeviceConfigData);
+                    mUwbConfigJetPack.setBLEDeviceList(deviceList, uwbDeviceConfigData.getDeviceMacAddress());
+
+                    mBluetoothManagerImpl.transmit(Utils.concat(
+                            new byte[]{Protocol.MessageId.uwbPhoneConfigurationData.getValue()},
+                            mUwbConfigJetPack.getmUwbPhoneConfigData().toByteArray()));
+                } else {
+                    mUwbConfigJetPack.setBLEDeviceList(deviceList, uwbDeviceConfigData.getDeviceMacAddress());
+                }
+            } catch (Exception e) {
+                Log.d(TAG, e.getMessage());
                 Log.d(TAG, "No JETPACK UWB found.");
                 Toast.makeText(mContext, "No JETPACK UWB found.", Toast.LENGTH_LONG).show();
             }
-        }).start();
+        });
+        Log.d(TAG, "Thread stopped");
+
+        t.start();
     }
 
     @Override
