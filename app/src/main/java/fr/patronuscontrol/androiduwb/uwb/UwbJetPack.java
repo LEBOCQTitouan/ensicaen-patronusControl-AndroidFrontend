@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Random;
 
 import fr.patronuscontrol.androiduwb.MainActivity;
+import fr.patronuscontrol.androiduwb.managers.BeaconManager;
 import fr.patronuscontrol.androiduwb.managers.UwbManagerImpl;
 import fr.patronuscontrol.androiduwb.utils.Utils;
 import io.reactivex.rxjava3.core.Single;
@@ -27,6 +28,8 @@ public class UwbJetPack {
     private final Context mContext;
 
     private final UwbManagerImpl mUwbManagerImpl;
+
+    private final BeaconManager mBeaconManager;
 
     public static final int UWB_CHANNEL = 9;
     public static final int UWB_PREAMBLE_INDEX = 10;
@@ -46,6 +49,7 @@ public class UwbJetPack {
         mUwbManagerImpl = UwbManagerImpl.getInstance(context);
         mUwbDeviceConfigData = uwbDeviceConfigData;
         mUwbPhoneConfigData = new UwbPhoneConfigData();
+        mBeaconManager = BeaconManager.getInstance(context);
 
         int sessionId = new Random().nextInt();
         Log.d(TAG, "UWB SessionID : " + sessionId);
@@ -68,6 +72,18 @@ public class UwbJetPack {
         mUwbPhoneConfigData.setPhoneMacAddress(Utils.revert(localAddress.getAddress()));
 
         mBLEDeviceMap = null;
+    }
+
+    public void onResume() {
+        if (mBeaconManager != null) {
+            mBeaconManager.onResume();
+        }
+    }
+
+    public void onPause() {
+        if (mBeaconManager != null) {
+            mBeaconManager.onPause();
+        }
     }
 
     public void setBLEDeviceList(List<BluetoothDevice> bleDeviceList, byte[] deviceMacAddress){
@@ -119,6 +135,8 @@ public class UwbJetPack {
 
                             String macAddress = Utils.byteArrayToHexString(
                                     rangingResult.getDevice().getAddress().getAddress());
+
+                            mBeaconManager.updatePhonePosition(angleAzimuth, distance);
 
                             if (Math.abs(angleAzimuth) < angle) {
                                 ((MainActivity) mContext).lockVibration(

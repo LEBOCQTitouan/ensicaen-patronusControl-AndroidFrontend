@@ -14,10 +14,7 @@ import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.util.Log;
 import android.view.View;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.Button;
-import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -26,13 +23,14 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import fr.patronuscontrol.androiduwb.bluetooth.BleRanging;
+import fr.patronuscontrol.androiduwb.managers.SensorCompassManager;
 import fr.patronuscontrol.androiduwb.managers.UwbManagerImpl;
-import fr.patronuscontrol.androiduwb.uwb.UwbJetPack;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<Intent> mActivityResultLauncher;
     private UwbManagerImpl uwbManagerImpl;
     private BleRanging bleRanging;
+    private SensorCompassManager sensorCompassManager;
 
     private WebView myWebView;
 
@@ -50,12 +48,15 @@ public class MainActivity extends AppCompatActivity {
         myWebView.loadUrl("http://patronuscontrol.local");
         myWebView.getSettings().setJavaScriptEnabled(true);
 
+        sensorCompassManager = SensorCompassManager.getInstance(this);
+
         startUWBBLE();
 
 
         myWebView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                Log.d("MainActivity", "Stop ranging");
                 uwbManagerImpl.stopRanging();
             }
         });
@@ -78,6 +79,10 @@ public class MainActivity extends AppCompatActivity {
         if (!checkPermission()) {
             requestPermissions();
         }
+    }
+
+    public SensorCompassManager getSensorCompassManager() {
+        return sensorCompassManager;
     }
 
     /**
@@ -199,10 +204,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        if (sensorCompassManager != null) {
+            sensorCompassManager.onPause();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (sensorCompassManager != null) {
+            sensorCompassManager.onResume();
+        }
     }
 }

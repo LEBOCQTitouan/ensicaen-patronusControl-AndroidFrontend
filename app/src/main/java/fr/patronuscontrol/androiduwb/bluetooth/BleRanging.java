@@ -7,7 +7,6 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -23,7 +22,6 @@ import java.util.UUID;
 
 import fr.patronuscontrol.androiduwb.MainActivity;
 import fr.patronuscontrol.androiduwb.managers.BluetoothManagerImpl;
-import fr.patronuscontrol.androiduwb.managers.LocationManagerImpl;
 import fr.patronuscontrol.androiduwb.utils.Utils;
 import fr.patronuscontrol.androiduwb.uwb.Protocol;
 import fr.patronuscontrol.androiduwb.uwb.UwbDeviceConfigData;
@@ -38,7 +36,6 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
     private final MainActivity mMainActivity;
 
     private final BluetoothManagerImpl mBluetoothManagerImpl;
-    private final LocationManagerImpl mLocationManagerImpl;
 
     private UwbJetPack mUwbConfigJetPack = null;
 
@@ -46,22 +43,33 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
 
     private final List<BluetoothDevice> disconnectedDeviceList;
 
+    public BleRanging(MainActivity mainActivity) {
+        mContext = mainActivity;
+        mBluetoothManagerImpl = BluetoothManagerImpl.getInstance(mContext, this);
+        mMainActivity = mainActivity;
+
+        deviceList = new ArrayList<>();
+        disconnectedDeviceList = new ArrayList<>();
+    }
+
+    public void onResume() {
+        if (mUwbConfigJetPack != null) {
+            mUwbConfigJetPack.onResume();
+        }
+    }
+
+    public void onPause() {
+        if (mUwbConfigJetPack != null) {
+            mUwbConfigJetPack.onPause();
+        }
+    }
+
     public List<BluetoothDevice> getDisconnectedDeviceList() {
         return disconnectedDeviceList;
     }
 
     public UwbJetPack getUwbJetPack() {
         return mUwbConfigJetPack;
-    }
-
-    public BleRanging(MainActivity mainActivity) {
-        mContext = mainActivity;
-        mBluetoothManagerImpl = BluetoothManagerImpl.getInstance(mContext, this);
-        mLocationManagerImpl = LocationManagerImpl.getInstance(mContext);
-        mMainActivity = mainActivity;
-
-        deviceList = new ArrayList<>();
-        disconnectedDeviceList = new ArrayList<>();
     }
 
     /**
@@ -85,19 +93,13 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
     }
 
     public boolean initializeBLECounterpart() {
-        if (!mBluetoothManagerImpl.isSupported()
-                || !mLocationManagerImpl.isSupported()) {
+        if (!mBluetoothManagerImpl.isSupported()) {
             Toast.makeText(mContext, "Missing BLE", Toast.LENGTH_LONG).show();
             return false;
         }
         if (!mBluetoothManagerImpl.isEnabled()) {
             Log.d(TAG, "Bluetooth not enabled");
             enableBluetooth();
-            return false;
-        }
-        if (!mLocationManagerImpl.isEnabled()) {
-            Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-            mMainActivity.getmActivityResultLauncher().launch(enableLocationIntent);
             return false;
         }
 
@@ -209,7 +211,7 @@ public class BleRanging implements BluetoothManagerImpl.BluetoothConnectionListe
             configureAndStartUwbRangingSession(trimmedData);
         } else if (messageId == Protocol.MessageId.uwbDidStart.getValue()) {
             // TODO uncomment when the controller mode works.
-            startBLEScanning();
+//            startBLEScanning();
             mUwbConfigJetPack.startUwbPhone();
         } else if (messageId == Protocol.MessageId.uwbDidStop.getValue()) {
             // todo uwbRangingSessionStopped();
