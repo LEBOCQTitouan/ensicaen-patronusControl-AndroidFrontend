@@ -8,6 +8,7 @@ import android.webkit.WebView;
 import fr.patronuscontrol.androiduwb.MainActivity;
 import fr.patronuscontrol.androiduwb.R;
 
+
 public class BeaconManager {
     private static final String TAG = "BeaconManager";
     @SuppressLint("StaticFieldLeak")
@@ -35,7 +36,7 @@ public class BeaconManager {
      */
     public void updatePhonePosition(int beaconAngle, int beaconDistance) {
         int[] coordinates = getPhoneXYAngCoordinates(mSensorCompassManager.getNorthAngle(), beaconAngle, beaconDistance);
-        updatePhonePosition(coordinates[0], coordinates[1], coordinates[2]);
+        updatePhonePosition(-coordinates[0], coordinates[1], coordinates[2]);
     }
 
     /**
@@ -46,17 +47,18 @@ public class BeaconManager {
      * @return coordinates (X,Y) of the phone
      */
     private int[] getPhoneXYAngCoordinates(int northAngle, int beaconAngle, int beaconDistance) {
+        Log.d(TAG, "North Angle : " + northAngle + "; beaconAngle : " + beaconAngle + "; distance : " + beaconDistance);
         int[] coordinates = new int[3];
 
         int strategy = 0;
-        int alpha = northAngle - beaconAngle;
+        int alpha = northAngle + beaconAngle;
         if (alpha < 0) {
             strategy = 2;
             alpha = alpha % 180;
         }
         if (alpha > 90) {
             strategy += 1;
-            alpha = 180 - alpha;
+            alpha = alpha - 90;
         }
 
         double x = Math.sin(Math.toRadians(alpha)) * beaconDistance;
@@ -94,7 +96,7 @@ public class BeaconManager {
      */
     private void updatePhonePosition(int x, int y, int ang) {
         Log.d(TAG, "findByCoordinates: x=" + x + " y=" + y + " ang=" + ang);
-        mWebView.loadUrl("javascript:findByCoordinates(x,y,ang)");
+        mWebView.loadUrl("javascript:findByCoordinates("+x+","+y+","+ang+")");
     }
 
     public void onResume() {

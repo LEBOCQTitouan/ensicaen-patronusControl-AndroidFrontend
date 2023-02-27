@@ -45,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.webview);
 
         myWebView = findViewById(R.id.webview);
-        myWebView.loadUrl("http://patronuscontrol.local");
+//        myWebView.loadUrl("http://patronuscontrol.local");
+        myWebView.loadUrl("http://192.168.1.14:4200");
         myWebView.getSettings().setJavaScriptEnabled(true);
 
         sensorCompassManager = SensorCompassManager.getInstance(this);

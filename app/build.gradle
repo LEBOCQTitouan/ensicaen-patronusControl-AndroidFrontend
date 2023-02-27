@@ -7,7 +7,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId "fr.patronuscontrol.androiduwb"
+        applicationId "fr.patronuscontrol.patronusV2"
         minSdk 31
         targetSdk 33
         versionCode 1

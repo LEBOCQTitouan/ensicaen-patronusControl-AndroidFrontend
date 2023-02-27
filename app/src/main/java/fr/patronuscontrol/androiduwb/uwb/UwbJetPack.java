@@ -138,12 +138,12 @@ public class UwbJetPack {
 
                             mBeaconManager.updatePhonePosition(angleAzimuth, distance);
 
-                            if (Math.abs(angleAzimuth) < angle) {
-                                ((MainActivity) mContext).lockVibration(
-                                        Objects.requireNonNull(mBLEDeviceMap.get(macAddress)).getAddress());
-                            } else {
-                                ((MainActivity) mContext).unlockVibration();
-                            }
+//                            if (Math.abs(angleAzimuth) < angle) {
+//                                ((MainActivity) mContext).lockVibration(
+//                                        Objects.requireNonNull(mBLEDeviceMap.get(macAddress)).getAddress());
+//                            } else {
+//                                ((MainActivity) mContext).unlockVibration();
+//                            }
                         } else {
                             Log.d(TAG, "Position is null");
                         }
